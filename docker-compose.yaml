@@ -1,0 +1,55 @@
+# nginx proxy address - http://172.17.0.1:8080
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "1"
+
+services:
+  prestashop:
+    image: prestashop/prestashop:latest
+    container_name: prestashop-app
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - prestashop
+    ports:
+      - "8080:80"
+    environment:
+      TZ: ${TZ:-America/New_York}
+    volumes:
+      - ./rootfs/data/prestashop:/data
+      - ./rootfs/config/prestashop:/config
+    depends_on:
+      - prestashop-db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  prestashop-db:
+    image: mariadb:11
+    container_name: prestashop-db
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - prestashop
+    environment:
+      TZ: ${TZ:-America/New_York}
+      MARIADB_DATABASE: ${DB_CREATE_DATABASE_NAME:-prestashop}
+      MARIADB_USER: ${DB_USER_NAME:-prestashop}
+      MARIADB_PASSWORD: ${DB_USER_PASS:-changeme_db_password}
+      MARIADB_ROOT_PASSWORD: ${DB_ADMIN_PASS:-changeme_root_password}
+    volumes:
+      - ./rootfs/db/mariadb/prestashop:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  prestashop:
+    external: false

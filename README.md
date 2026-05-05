@@ -50,9 +50,9 @@ See `docker-compose.yaml` for complete list of configurable options.
 
 ## 📂 Volumes
 
-- `./rootfs/data/prestashop` - Data storage
-- `./rootfs/config/prestashop` - Data storage
-- `./rootfs/data/db/mariadb/prestashop` - Data storage
+- `./volumes/data/prestashop` - Data storage
+- `./volumes/config/prestashop` - Data storage
+- `./volumes/data/db/mariadb/prestashop` - Data storage
 
 ## 🔐 Security
 

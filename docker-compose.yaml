@@ -17,6 +17,8 @@ services:
     logging: *default-logging
     networks:
       - prestashop
+      - proxy
+      - cloudflare
     ports:
       - "172.17.0.1:8080:80"
     environment:
@@ -32,6 +34,8 @@ services:
       DB_PASSWD: ${DB_USER_PASS:-changeme_db_password}
       ADMIN_MAIL: ${APP_ADMIN_USER:-admin@example.com}
       ADMIN_PASSWD: ${APP_ADMIN_PASS:-changeme_admin_password}
+      CONTAINER_NAME: prestashop-app
+      HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
     volumes:
       - ./volumes/data/prestashop:/var/www/html
     depends_on:
@@ -42,6 +46,22 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      - 'traefik.enable=true'
+      - 'cloudflare.enable=true'
+      - 'traefik.docker.network=proxy'
+      - 'cloudflare.service=http://prestashop-app:80'
+      - 'cloudflare.hostname=prestashop.${CLOUDFLARE_ZONE_NAME:-}'
+      - 'traefik.http.routers.prestashop-app.entrypoints=http'
+      - 'traefik.http.routers.prestashop-app-secure.tls=true'
+      - 'traefik.http.routers.prestashop-app.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
+      - 'traefik.http.middlewares.prestashop-app-https-redirect.redirectscheme.scheme=https'
+      - 'traefik.http.routers.prestashop-app.middlewares=prestashop-app-https-redirect'
+      - 'traefik.http.routers.prestashop-app-secure.entrypoints=https'
+      - 'traefik.http.routers.prestashop-app-secure.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
+      - 'traefik.http.routers.prestashop-app-secure.tls.certresolver=cloudflare'
+      - 'traefik.http.routers.prestashop-app-secure.service=prestashop-app'
+      - 'traefik.http.services.prestashop-app.loadbalancer.server.port=80'
 
   prestashop-db:
     image: mariadb:latest
@@ -57,6 +77,7 @@ services:
       MARIADB_USER: ${DB_USER_NAME:-prestashop}
       MARIADB_PASSWORD: ${DB_USER_PASS:-changeme_db_password}
       MARIADB_ROOT_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
+      CONTAINER_NAME: prestashop-db
     volumes:
       - ./volumes/data/db/mariadb/prestashop:/var/lib/mysql
     healthcheck:
@@ -69,3 +90,7 @@ networks:
   prestashop:
     name: prestashop
     external: false
+  proxy:
+    external: true
+  cloudflare:
+    external: true
